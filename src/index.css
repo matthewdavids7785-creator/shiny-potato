@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    background-color: #050505;
+    color: #e2e8f0;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Custom Classes */
+.hero-glow {
+    background: radial-gradient(circle at center top, rgba(255, 79, 24, 0.15) 0%, rgba(5, 5, 5, 0) 60%);
+}
+
+.glass-card { 
+    background: rgba(20, 23, 30, 0.6); 
+    /* Added Safari Support below to fix the red error */
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px); 
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+}
+
+.live-badge-container {
+    background: rgba(255, 79, 24, 0.1); 
+    border: 1px solid rgba(255, 79, 24, 0.3);
+    box-shadow: 0 0 15px rgba(255, 79, 24, 0.1);
+}
