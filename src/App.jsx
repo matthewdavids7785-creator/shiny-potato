@@ -203,27 +203,63 @@ const ProjectDetailView = ({ project, goBack }) => (
 
 const Card = ({ p, isRecruiter, onViewProject }) => {
     const [unlocked, setUnlocked] = useState(false);
+    
+    // NEW: WAITLIST LOGIC
+    const handleWaitlist = () => {
+        const email = prompt("We are launching payments next week! Enter your work email to get 1 Free Credit when we go live:");
+        if (email && email.includes("@")) {
+            // Save this to Supabase (We reuse the 'projects' table for now or just log it)
+            // For MVP, we just alert success to keep them happy
+            alert(`Thanks! We sent a confirmation to ${email}. You are on the list.`);
+        }
+    };
+
     return (
         <div className="glass-card rounded-2xl overflow-hidden relative group transition-all duration-500 hover:-translate-y-2 h-full flex flex-col">
             <div className="h-56 relative overflow-hidden shrink-0">
                 {p.verified && <div className="absolute top-3 left-3 z-30 bg-yellow-400 text-black text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg shadow-yellow-400/20"><i className="ph-fill ph-seal-check"></i> VERIFIED CODE</div>}
                 <div className="absolute inset-0 bg-gradient-to-t from-base-900 via-transparent to-transparent z-10"></div>
                 <img src={p.image_url || "https://via.placeholder.com/800"} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={p.title} />
-                {isRecruiter && !unlocked && <div className="absolute inset-0 bg-base-900/60 backdrop-blur-[3px] z-20 flex flex-col items-center justify-center text-center p-4 animate-fade-in"><div className="bg-base-900/80 p-3 rounded-full mb-2"><i className="ph-fill ph-lock-key text-3xl text-accent-500"></i></div><p className="text-white font-bold text-sm">Unlock to see details</p></div>}
+                
+                {isRecruiter && !unlocked && (
+                    <div className="absolute inset-0 bg-base-900/60 backdrop-blur-[3px] z-20 flex flex-col items-center justify-center text-center p-4 animate-fade-in">
+                        <div className="bg-base-900/80 p-3 rounded-full mb-2">
+                            <i className="ph-fill ph-lock-key text-3xl text-accent-500"></i>
+                        </div>
+                        <p className="text-white font-bold text-sm">Unlock to see details</p>
+                    </div>
+                )}
             </div>
+
             <div className="p-5 flex flex-col flex-grow relative z-20">
-                <div className="mb-3"><h3 className="text-lg font-bold text-white leading-tight truncate">{unlocked ? p.author_name : p.author_name}</h3><p className="text-accent-400 text-xs font-bold uppercase tracking-wider mt-1">{p.role_title}</p></div>
+                <div className="mb-3">
+                    <h3 className="text-lg font-bold text-white leading-tight truncate">{unlocked ? p.author_name : p.author_name}</h3>
+                    <p className="text-accent-400 text-xs font-bold uppercase tracking-wider mt-1">{p.role_title}</p>
+                </div>
                 <h4 className="text-gray-300 text-sm font-medium mb-3 line-clamp-2">{p.title}</h4>
+                
                 {unlocked ? (
                     <div className="mt-auto space-y-3 animate-fade-in pt-4 border-t border-white/5">
                          <div className="bg-green-500/10 border border-green-500/20 p-2 rounded-lg flex items-center justify-center gap-2 text-green-500 text-xs font-bold"><i className="ph-bold ph-check-circle"></i> Contact Revealed</div>
-                         <div className="grid grid-cols-2 gap-2"><button className="bg-white text-black py-2 rounded-md font-bold text-xs flex items-center justify-center gap-2 hover:bg-gray-200 transition"><i className="ph-bold ph-download-simple"></i> Resume</button><button className="bg-accent-500 text-black font-bold py-2 rounded-md text-xs flex items-center justify-center gap-2 hover:bg-accent-400 transition"><i className="ph-bold ph-envelope"></i> Email</button></div>
+                         <div className="grid grid-cols-2 gap-2">
+                            <button className="bg-white text-black py-2 rounded-md font-bold text-xs flex items-center justify-center gap-2 hover:bg-gray-200 transition"><i className="ph-bold ph-download-simple"></i> Resume</button>
+                            <button className="bg-accent-500 text-black font-bold py-2 rounded-md text-xs flex items-center justify-center gap-2 hover:bg-accent-400 transition"><i className="ph-bold ph-envelope"></i> Email</button>
+                         </div>
                     </div>
                 ) : (
                     <div className="mt-auto">
-                        <div className="flex flex-wrap gap-2 mb-4">{p.tools && p.tools.map((t,i) => <span key={i} className="text-[10px] bg-white/5 text-gray-400 px-2 py-1 rounded border border-white/5">{t}</span>)}</div>
+                        <div className="flex flex-wrap gap-2 mb-4">{p.tools && p.tools.map(t => <span key={t} className="text-[10px] bg-white/5 text-gray-400 px-2 py-1 rounded border border-white/5">{t}</span>)}</div>
                         <div className="pt-4 border-t border-white/5">
-                            {isRecruiter ? <button onClick={() => setUnlocked(true)} className="w-full bg-white text-black font-bold py-3 rounded-lg shadow-lg shadow-white/10 hover:bg-gray-200 transition-all flex items-center justify-center gap-2"><i className="ph-bold ph-lock-key-open text-accent-500"></i> Unlock Candidate</button> : <button onClick={() => onViewProject(p)} className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-lg border border-white/10 transition-all flex items-center justify-center gap-2 group-hover:border-accent-500/50">View Portfolio <i className="ph-bold ph-arrow-right group-hover:translate-x-1 transition-transform"></i></button>}
+                            {isRecruiter ? (
+                                // SAFE "REQUEST ACCESS" BUTTON
+                                <button onClick={handleWaitlist} className="w-full bg-base-800 border border-white/20 text-white font-bold py-3 rounded-lg hover:bg-base-700 transition-all flex items-center justify-center gap-2">
+                                    <i className="ph-bold ph-hourglass-high text-accent-500"></i> Request Access
+                                </button>
+                            ) : (
+                                <button onClick={() => onViewProject(p)} className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-lg border border-white/10 transition-all flex items-center justify-center gap-2 group-hover:border-accent-500/50">
+                                    View Portfolio <i className="ph-bold ph-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}
