@@ -31,7 +31,12 @@ const Navbar = ({ isRecruiter, toggleRecruiter, goHome, goToUpload }) => (
                 <p className="text-[10px] text-gray-400 font-medium ml-10 -mt-1 tracking-wide hidden md:block">Connecting the world to Africa's verified data genius.</p>
             </div>
             <div className="flex items-center gap-4">
-                {/* NEW: Submit Project Button */}
+                {/* MOBILE: Icon Only */}
+                <button onClick={goToUpload} className="md:hidden text-accent-500 text-2xl p-2">
+                    <i className="ph-bold ph-plus-circle"></i>
+                </button>
+
+                {/* DESKTOP: Full Button */}
                 <button onClick={goToUpload} className="hidden md:flex items-center gap-2 text-gray-300 hover:text-white font-bold text-sm transition-colors mr-4">
                     <i className="ph-bold ph-plus-circle text-accent-500"></i> Submit Project
                 </button>
