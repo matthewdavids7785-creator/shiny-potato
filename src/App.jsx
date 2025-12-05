@@ -1,8 +1,23 @@
 import { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient';
-import '@phosphor-icons/web/regular';
-import '@phosphor-icons/web/fill';
-import '@phosphor-icons/web/bold';
+// FIX: Trying absolute path from src root, which is safer in Vite
+import { supabase } from '/src/supabaseClient.js'; 
+
+// import '@phosphor-icons/web/regular'; // Commented out
+// import '@phosphor-icons/web/fill';    // Commented out
+// import '@phosphor-icons/web/bold';    // Commented out
+
+// --- HELPER FUNCTIONS ---
+
+// Mask the name: "Melvon Khanyile Mashele" -> "Melvon M."
+const getMaskedName = (fullName) => {
+    if (!fullName) return "Candidate";
+    const parts = fullName.trim().split(' ');
+    if (parts.length > 1) {
+        // Return First Name + Last Initial
+        return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`;
+    }
+    return parts[0]; // Just First Name if no last name
+};
 
 // --- COMPONENTS ---
 
@@ -57,9 +72,10 @@ const Navbar = ({ isRecruiter, toggleRecruiter, goHome, goToUpload }) => (
     </nav>
 );
 
-// --- UPLOAD FORM COMPONENT ---
+// --- UPLOAD FORM COMPONENT (With Image Upload) ---
 const UploadForm = ({ goBack }) => {
     const [loading, setLoading] = useState(false);
+    const [imageFile, setImageFile] = useState(null); // File state
     const [formData, setFormData] = useState({
         firstName: '', lastName: '', email: '', 
         title: '', role: 'Data Analyst', tools: '', 
@@ -72,9 +88,38 @@ const UploadForm = ({ goBack }) => {
         
         const fullName = `${formData.firstName} ${formData.lastName}`;
         const toolsArray = formData.tools.split(',').map(t => t.trim());
+        let imageUrl = ''; // Default empty
 
         try {
-            const { error } = await supabase.from('projects').insert({
+            // 1. Upload Image if present
+            if (imageFile) {
+                // Sanitize file name to avoid issues
+                const fileExt = imageFile.name.split('.').pop();
+                const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                const filePath = `projects/${fileName}`; // Simplified path
+                
+                const { error: uploadError } = await supabase.storage
+                    .from('project_images')
+                    .upload(filePath, imageFile, {
+                        cacheControl: '3600',
+                        upsert: false,
+                    });
+
+                if (uploadError) throw uploadError;
+
+                // 2. Get Public URL
+                const { data: publicUrlData } = supabase.storage
+                    .from('project_images')
+                    .getPublicUrl(filePath);
+
+                imageUrl = publicUrlData.publicUrl;
+            } else {
+                // Fallback random image if no file uploaded
+                imageUrl = `https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80&${Math.random()}`;
+            }
+
+            // 3. Insert Project Data
+            const { error: insertError } = await supabase.from('projects').insert({
                 title: formData.title,
                 author_name: fullName,
                 author_email: formData.email, 
@@ -83,11 +128,12 @@ const UploadForm = ({ goBack }) => {
                 tools: toolsArray,
                 project_url: formData.projectLink,
                 repo_url: formData.githubLink,
-                image_url: `https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80&${Math.random()}`, 
+                image_url: imageUrl, 
                 verified: false 
             });
 
-            if (error) throw error;
+            if (insertError) throw insertError;
+
             alert("Project Submitted for Verification! It will appear once approved.");
             goBack();
         } catch (error) {
@@ -100,9 +146,11 @@ const UploadForm = ({ goBack }) => {
     return (
         <div className="min-h-screen pt-24 px-4 container mx-auto pb-20 max-w-2xl animate-fade-in">
             <button onClick={goBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-8"><i className="ph-bold ph-arrow-left"></i> Cancel & Return</button>
+            
             <div className="glass-card p-8 rounded-2xl border border-white/10">
                 <h2 className="text-3xl font-bold text-white mb-2">Submit your Work</h2>
                 <p className="text-gray-400 mb-8">Showcase your best data projects to international recruiters.</p>
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -114,15 +162,19 @@ const UploadForm = ({ goBack }) => {
                             <input required type="text" className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, lastName: e.target.value})} />
                         </div>
                     </div>
+
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address (Private)</label>
                         <input required type="email" placeholder="For recruiters to contact you" className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, email: e.target.value})} />
                     </div>
+
                     <div className="h-px bg-white/10 w-full my-2"></div>
+
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Project Title</label>
                         <input required type="text" placeholder="e.g. Lagos Traffic Analysis Dashboard" className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, title: e.target.value})} />
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Role</label>
@@ -138,18 +190,35 @@ const UploadForm = ({ goBack }) => {
                             <input required type="text" placeholder="Python, SQL, PowerBI" className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, tools: e.target.value})} />
                         </div>
                     </div>
+
+                    {/* NEW IMAGE INPUT */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Project Screenshot</label>
+                        <input 
+                            type="file" 
+                            accept="image/*" 
+                            required
+                            className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent-500 file:text-black hover:file:bg-accent-400" 
+                            onChange={e => setImageFile(e.target.files[0])} 
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Upload a clear image of your dashboard or code snippet.</p>
+                    </div>
+
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Project Link (Dashboard/Live)</label>
                         <input type="url" placeholder="https://..." className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, projectLink: e.target.value})} />
                     </div>
+
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">GitHub Repo (Required for Verification)</label>
                         <input required type="url" placeholder="https://github.com/..." className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, githubLink: e.target.value})} />
                     </div>
+
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Description</label>
                         <textarea required rows="4" className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
                     </div>
+
                     <button disabled={loading} type="submit" className="w-full bg-accent-500 hover:bg-accent-400 text-black font-bold py-4 rounded-xl transition-all shadow-lg shadow-accent-500/20">
                         {loading ? "Uploading..." : "Submit Project"}
                     </button>
@@ -159,6 +228,7 @@ const UploadForm = ({ goBack }) => {
     );
 };
 
+// --- PROJECT DETAIL VIEW (Updated with Masked Name) ---
 const ProjectDetailView = ({ project, goBack }) => (
     <div className="min-h-screen pt-24 px-6 container mx-auto animate-fade-in pb-20">
         <button onClick={goBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"><i className="ph-bold ph-arrow-left"></i> Back to Talent Pool</button>
@@ -185,7 +255,10 @@ const ProjectDetailView = ({ project, goBack }) => (
                 <h1 className="text-3xl font-bold text-white mb-2">{project.title}</h1>
                 <div className="flex items-center gap-3 mb-6">
                     <div className="w-8 h-8 rounded-full bg-accent-500 flex items-center justify-center text-black font-bold">{project.author_name ? project.author_name.charAt(0) : "?"}</div>
-                    <p className="text-gray-300">By <span className="text-white font-bold">{project.author_name || "Unknown"}</span></p>
+                    <p className="text-gray-300">By <span className="text-white font-bold">
+                        {/* MASKED NAME APPLIED HERE FOR PRIVACY */}
+                        {getMaskedName(project.author_name)}
+                    </span></p>
                     <span className="text-gray-600">•</span>
                     <p className="text-accent-400 text-sm font-bold">{project.role_title}</p>
                 </div>
@@ -201,8 +274,6 @@ const ProjectDetailView = ({ project, goBack }) => (
 );
 
 const Card = ({ p, isRecruiter, onViewProject }) => {
-    const [unlocked, setUnlocked] = useState(false);
-    
     // NEW: WAITLIST LOGIC
     const handleWaitlist = async () => {
         const email = prompt("We are launching payments next week! Enter your work email to get 1 Free Credit when we go live:");
@@ -233,7 +304,7 @@ const Card = ({ p, isRecruiter, onViewProject }) => {
                 <div className="absolute inset-0 bg-gradient-to-t from-base-900 via-transparent to-transparent z-10"></div>
                 <img src={p.image_url || "https://via.placeholder.com/800"} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={p.title} />
                 
-                {isRecruiter && !unlocked && (
+                {isRecruiter && (
                     <div className="absolute inset-0 bg-base-900/60 backdrop-blur-[3px] z-20 flex flex-col items-center justify-center text-center p-4 animate-fade-in">
                         <div className="bg-base-900/80 p-3 rounded-full mb-2">
                             <i className="ph-fill ph-lock-key text-3xl text-accent-500"></i>
@@ -245,36 +316,29 @@ const Card = ({ p, isRecruiter, onViewProject }) => {
 
             <div className="p-5 flex flex-col flex-grow relative z-20">
                 <div className="mb-3">
-                    <h3 className="text-lg font-bold text-white leading-tight truncate">{unlocked ? p.author_name : p.author_name}</h3>
+                    {/* MASKED NAME LOGIC: If Recruiter mode is ON, show Masked Name. */}
+                    <h3 className="text-lg font-bold text-white leading-tight truncate">
+                        {isRecruiter ? getMaskedName(p.author_name) : p.author_name}
+                    </h3>
                     <p className="text-accent-400 text-xs font-bold uppercase tracking-wider mt-1">{p.role_title}</p>
                 </div>
                 <h4 className="text-gray-300 text-sm font-medium mb-3 line-clamp-2">{p.title}</h4>
                 
-                {unlocked ? (
-                    <div className="mt-auto space-y-3 animate-fade-in pt-4 border-t border-white/5">
-                         <div className="bg-green-500/10 border border-green-500/20 p-2 rounded-lg flex items-center justify-center gap-2 text-green-500 text-xs font-bold"><i className="ph-bold ph-check-circle"></i> Contact Revealed</div>
-                         <div className="grid grid-cols-2 gap-2">
-                            <button className="bg-white text-black py-2 rounded-md font-bold text-xs flex items-center justify-center gap-2 hover:bg-gray-200 transition"><i className="ph-bold ph-download-simple"></i> Resume</button>
-                            <button className="bg-accent-500 text-black font-bold py-2 rounded-md text-xs flex items-center justify-center gap-2 hover:bg-accent-400 transition"><i className="ph-bold ph-envelope"></i> Email</button>
-                         </div>
+                <div className="mt-auto">
+                    <div className="flex flex-wrap gap-2 mb-4">{p.tools && p.tools.map(t => <span key={t} className="text-[10px] bg-white/5 text-gray-400 px-2 py-1 rounded border border-white/5">{t}</span>)}</div>
+                    <div className="pt-4 border-t border-white/5">
+                        {isRecruiter ? (
+                            // SAFE "REQUEST ACCESS" BUTTON
+                            <button onClick={handleWaitlist} className="w-full bg-base-800 border border-white/20 text-white font-bold py-3 rounded-lg hover:bg-base-700 transition-all flex items-center justify-center gap-2">
+                                <i className="ph-bold ph-hourglass-high text-accent-500"></i> Request Access
+                            </button>
+                        ) : (
+                            <button onClick={() => onViewProject(p)} className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-lg border border-white/10 transition-all flex items-center justify-center gap-2 group-hover:border-accent-500/50">
+                                View Portfolio <i className="ph-bold ph-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                            </button>
+                        )}
                     </div>
-                ) : (
-                    <div className="mt-auto">
-                        <div className="flex flex-wrap gap-2 mb-4">{p.tools && p.tools.map(t => <span key={t} className="text-[10px] bg-white/5 text-gray-400 px-2 py-1 rounded border border-white/5">{t}</span>)}</div>
-                        <div className="pt-4 border-t border-white/5">
-                            {isRecruiter ? (
-                                // SAFE "REQUEST ACCESS" BUTTON
-                                <button onClick={handleWaitlist} className="w-full bg-base-800 border border-white/20 text-white font-bold py-3 rounded-lg hover:bg-base-700 transition-all flex items-center justify-center gap-2">
-                                    <i className="ph-bold ph-hourglass-high text-accent-500"></i> Request Access
-                                </button>
-                            ) : (
-                                <button onClick={() => onViewProject(p)} className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-lg border border-white/10 transition-all flex items-center justify-center gap-2 group-hover:border-accent-500/50">
-                                    View Portfolio <i className="ph-bold ph-arrow-right group-hover:translate-x-1 transition-transform"></i>
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                )}
+                </div>
             </div>
         </div>
     );
@@ -287,7 +351,7 @@ const App = () => {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => { fetchProjects(); }, [activeView]); // Refetch when view changes (e.g. after upload)
+    useEffect(() => { fetchProjects(); }, [activeView]); 
 
     const fetchProjects = async () => {
         try {
