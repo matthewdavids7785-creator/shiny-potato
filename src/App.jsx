@@ -57,7 +57,7 @@ const Navbar = ({ isRecruiter, toggleRecruiter, goHome, goToUpload }) => (
     </nav>
 );
 
-// --- NEW: UPLOAD FORM COMPONENT ---
+// --- UPLOAD FORM COMPONENT ---
 const UploadForm = ({ goBack }) => {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -70,24 +70,21 @@ const UploadForm = ({ goBack }) => {
         e.preventDefault();
         setLoading(true);
         
-        // Combine Name
         const fullName = `${formData.firstName} ${formData.lastName}`;
-        // Split tools by comma
         const toolsArray = formData.tools.split(',').map(t => t.trim());
 
         try {
             const { error } = await supabase.from('projects').insert({
                 title: formData.title,
                 author_name: fullName,
-                author_email: formData.email, // Saved privately
+                author_email: formData.email, 
                 role_title: formData.role,
                 description: formData.description,
                 tools: toolsArray,
                 project_url: formData.projectLink,
                 repo_url: formData.githubLink,
-                // Using a random placeholder image for now until we set up Storage
                 image_url: `https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80&${Math.random()}`, 
-                verified: false // Always false until you review it
+                verified: false 
             });
 
             if (error) throw error;
@@ -103,11 +100,9 @@ const UploadForm = ({ goBack }) => {
     return (
         <div className="min-h-screen pt-24 px-4 container mx-auto pb-20 max-w-2xl animate-fade-in">
             <button onClick={goBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-8"><i className="ph-bold ph-arrow-left"></i> Cancel & Return</button>
-            
             <div className="glass-card p-8 rounded-2xl border border-white/10">
                 <h2 className="text-3xl font-bold text-white mb-2">Submit your Work</h2>
                 <p className="text-gray-400 mb-8">Showcase your best data projects to international recruiters.</p>
-
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -119,19 +114,15 @@ const UploadForm = ({ goBack }) => {
                             <input required type="text" className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, lastName: e.target.value})} />
                         </div>
                     </div>
-
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address (Private)</label>
                         <input required type="email" placeholder="For recruiters to contact you" className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, email: e.target.value})} />
                     </div>
-
                     <div className="h-px bg-white/10 w-full my-2"></div>
-
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Project Title</label>
                         <input required type="text" placeholder="e.g. Lagos Traffic Analysis Dashboard" className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, title: e.target.value})} />
                     </div>
-
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Role</label>
@@ -147,22 +138,18 @@ const UploadForm = ({ goBack }) => {
                             <input required type="text" placeholder="Python, SQL, PowerBI" className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, tools: e.target.value})} />
                         </div>
                     </div>
-
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Project Link (Dashboard/Live)</label>
                         <input type="url" placeholder="https://..." className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, projectLink: e.target.value})} />
                     </div>
-
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">GitHub Repo (Required for Verification)</label>
                         <input required type="url" placeholder="https://github.com/..." className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, githubLink: e.target.value})} />
                     </div>
-
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Description</label>
                         <textarea required rows="4" className="w-full bg-base-900 border border-white/10 rounded-lg p-3 text-white focus:border-accent-500 outline-none" onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
                     </div>
-
                     <button disabled={loading} type="submit" className="w-full bg-accent-500 hover:bg-accent-400 text-black font-bold py-4 rounded-xl transition-all shadow-lg shadow-accent-500/20">
                         {loading ? "Uploading..." : "Submit Project"}
                     </button>
@@ -217,12 +204,25 @@ const Card = ({ p, isRecruiter, onViewProject }) => {
     const [unlocked, setUnlocked] = useState(false);
     
     // NEW: WAITLIST LOGIC
-    const handleWaitlist = () => {
+    const handleWaitlist = async () => {
         const email = prompt("We are launching payments next week! Enter your work email to get 1 Free Credit when we go live:");
+        
         if (email && email.includes("@")) {
-            // Save this to Supabase (We reuse the 'projects' table for now or just log it)
-            // For MVP, we just alert success to keep them happy
-            alert(`Thanks! We sent a confirmation to ${email}. You are on the list.`);
+            try {
+                // 1. Insert into Supabase 'recruiter_waitlist' table
+                const { error } = await supabase
+                    .from('recruiter_waitlist')
+                    .insert([{ email: email }]);
+
+                if (error) throw error;
+
+                // 2. Success Feedback
+                alert(`Success! We've added ${email} to the priority list. You'll get your free credit on launch day.`);
+                
+            } catch (error) {
+                console.error("Error adding to waitlist:", error);
+                alert("Something went wrong. Please try again.");
+            }
         }
     };
 
