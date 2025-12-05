@@ -23,13 +23,20 @@ const LiveCounter = () => {
 const Navbar = ({ isRecruiter, toggleRecruiter, goHome, goToUpload }) => (
     <nav className="fixed top-0 w-full z-50 glass-card border-b-0 border-b-white/5 h-20">
         <div className="container mx-auto px-6 h-full flex items-center justify-between">
+            {/* Logo Section */}
             <div className="flex flex-col justify-center cursor-pointer group" onClick={goHome}>
                 <div className="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
-                    <div className="w-8 h-8 bg-accent-500 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform"><i className="ph-bold ph-chart-polar text-black"></i></div>
-                    AfriData
+                    <div className="w-8 h-8 bg-accent-500 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <i className="ph-bold ph-chart-polar text-black"></i>
+                    </div>
+                    Genii Africa
                 </div>
-                <p className="text-[10px] text-gray-400 font-medium ml-10 -mt-1 tracking-wide hidden md:block">Connecting the world to Africa's verified data genius.</p>
+                <p className="text-[10px] text-gray-400 font-medium ml-10 -mt-1 tracking-wide hidden md:block">
+                    Connecting the world to Africa's verified data genius.
+                </p>
             </div>
+
+            {/* Right Side Buttons */}
             <div className="flex items-center gap-4">
                 {/* MOBILE: Icon Only */}
                 <button onClick={goToUpload} className="md:hidden text-accent-500 text-2xl p-2">
@@ -79,7 +86,7 @@ const UploadForm = ({ goBack }) => {
                 project_url: formData.projectLink,
                 repo_url: formData.githubLink,
                 // Using a random placeholder image for now until we set up Storage
-                image_url: `https://source.unsplash.com/random/800x600/?data,technology,${Math.random()}`, 
+                image_url: `https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80&${Math.random()}`, 
                 verified: false // Always false until you review it
             });
 
@@ -303,7 +310,7 @@ const App = () => {
                 <main className="w-full relative z-10">
                     <div className="pt-36 pb-16 px-6 text-center">
                         <div className="flex justify-center"><LiveCounter /></div>
-                        <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tight leading-tight drop-shadow-2xl">Hire Proven <br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-500 to-orange-300">African Talent.</span></h1>
+                        <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tight leading-tight drop-shadow-2xl">Hire Proven <br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-500 to-orange-300">Genii of Africa.</span></h1>
                         <p className="text-gray-400 text-lg max-w-2xl mx-auto mb-10">The only portfolio platform that verifies the code behind the dashboard. <br className="hidden md:block" /><span className={`transition-colors duration-300 ${isRecruiter ? "text-accent-500 font-bold" : "text-gray-500"}`}>{isRecruiter ? "✅ Recruiter Mode Active: Unlock profiles below." : "Stop guessing, start hiring."}</span></p>
                     </div>
                     <div className="container mx-auto px-6 pb-20">
