@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
-// FIX: Trying absolute path from src root, which is safer in Vite
-import { supabase } from '/src/supabaseClient.js'; 
+// FIX: Re-integrating Supabase client logic directly to bypass module resolution issues.
+import { createClient } from '@supabase/supabase-js'; 
 
-// import '@phosphor-icons/web/regular'; // Commented out
-// import '@phosphor-icons/web/fill';    // Commented out
-// import '@phosphor-icons/web/bold';    // Commented out
+// --- SUPABASE CLIENT INITIALIZATION (Consolidated from supabaseClient.js) ---
+// This must be declared outside the component function to ensure it is only created once.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_KEY;
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// NOTE: Phosphor Icons are loaded via CDN in index.html to prevent build errors.
 
 // --- HELPER FUNCTIONS ---
 
@@ -229,51 +233,88 @@ const UploadForm = ({ goBack }) => {
 };
 
 // --- PROJECT DETAIL VIEW (Updated with Masked Name) ---
-const ProjectDetailView = ({ project, goBack }) => (
-    <div className="min-h-screen pt-24 px-6 container mx-auto animate-fade-in pb-20">
-        <button onClick={goBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"><i className="ph-bold ph-arrow-left"></i> Back to Talent Pool</button>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-            <div className="space-y-6">
-                <div className="h-[400px] rounded-2xl overflow-hidden border border-white/10 relative group">
-                    <img src={project.image_url || "https://via.placeholder.com/800"} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        {project.project_url && <a href={project.project_url} target="_blank" className="bg-white text-black px-6 py-3 rounded-full font-bold hover:scale-105 transition-transform">Open Interactive View</a>}
+const ProjectDetailView = ({ project, goBack }) => {
+    const [unlocked, setUnlocked] = useState(false);
+
+    // Reuse Waitlist Logic for Unlocking
+    const handleUnlock = async () => {
+        const email = prompt("We are launching payments next week! Enter your work email to get 1 Free Credit when we go live:");
+        if (email && email.includes("@")) {
+            try {
+                const { error } = await supabase.from('recruiter_waitlist').insert([{ email: email }]);
+                if (error) throw error;
+                alert(`Success! Unlocking profile for ${email}.`);
+                setUnlocked(true); // REVEAL THE NAME
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Something went wrong.");
+            }
+        }
+    };
+
+    return (
+        <div className="min-h-screen pt-24 px-6 container mx-auto animate-fade-in pb-20">
+            <button onClick={goBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"><i className="ph-bold ph-arrow-left"></i> Back to Talent Pool</button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div className="space-y-6">
+                    <div className="h-[400px] rounded-2xl overflow-hidden border border-white/10 relative group">
+                        <img src={project.image_url || "https://via.placeholder.com/800"} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            {project.project_url && <a href={project.project_url} target="_blank" className="bg-white text-black px-6 py-3 rounded-full font-bold hover:scale-105 transition-transform">Open Interactive View</a>}
+                        </div>
+                    </div>
+                    <div className="flex gap-4">
+                        <div className="bg-base-800 p-4 rounded-xl border border-white/5 flex-1 text-center">
+                            <p className="text-gray-400 text-xs uppercase">Tools Used</p>
+                            <div className="flex justify-center gap-2 mt-2 flex-wrap">{project.tools && project.tools.map((t,i) => <span key={i} className="text-xs bg-white/10 px-2 py-1 rounded">{t}</span>)}</div>
+                        </div>
+                        <div className="bg-base-800 p-4 rounded-xl border border-white/5 flex-1 text-center">
+                            <p className="text-gray-400 text-xs uppercase">Verified Code</p>
+                            {project.verified ? <p className="text-green-500 font-bold text-sm mt-1 flex items-center justify-center gap-1"><i className="ph-fill ph-check-circle"></i> Passed</p> : <p className="text-gray-500 font-bold text-sm mt-1">Pending Review</p>}
+                        </div>
                     </div>
                 </div>
-                <div className="flex gap-4">
-                    <div className="bg-base-800 p-4 rounded-xl border border-white/5 flex-1 text-center">
-                        <p className="text-gray-400 text-xs uppercase">Tools Used</p>
-                        <div className="flex justify-center gap-2 mt-2 flex-wrap">{project.tools && project.tools.map((t,i) => <span key={i} className="text-xs bg-white/10 px-2 py-1 rounded">{t}</span>)}</div>
+                <div className="glass-card p-8 rounded-2xl">
+                    <h1 className="text-3xl font-bold text-white mb-2">{project.title}</h1>
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-8 h-8 rounded-full bg-accent-500 flex items-center justify-center text-black font-bold">{project.author_name ? project.author_name.charAt(0) : "?"}</div>
+                        <p className="text-gray-300">By <span className="text-white font-bold">
+                            {/* PRIVACY: Show full name ONLY if unlocked */}
+                            {unlocked ? project.author_name : getMaskedName(project.author_name)}
+                        </span></p>
+                        <span className="text-gray-600">•</span>
+                        <p className="text-accent-400 text-sm font-bold">{project.role_title}</p>
                     </div>
-                    <div className="bg-base-800 p-4 rounded-xl border border-white/5 flex-1 text-center">
-                        <p className="text-gray-400 text-xs uppercase">Verified Code</p>
-                        {project.verified ? <p className="text-green-500 font-bold text-sm mt-1 flex items-center justify-center gap-1"><i className="ph-fill ph-check-circle"></i> Passed</p> : <p className="text-gray-500 font-bold text-sm mt-1">Pending Review</p>}
-                    </div>
+                    <div className="h-px bg-white/10 w-full my-6"></div>
+                    <h3 className="text-lg font-bold text-white mb-3">Project Summary</h3>
+                    <p className="text-gray-400 leading-relaxed mb-6">{project.description || "No description provided."}</p>
+                    
+                    {unlocked ? (
+                        <div className="animate-fade-in">
+                            <p className="text-green-500 text-sm font-bold mb-3"><i className="ph-bold ph-check-circle"></i> Contact Details Unlocked</p>
+                            {project.repo_url && <a href={project.repo_url} target="_blank" className="block w-full text-center border border-white/10 hover:bg-white/5 text-white font-bold py-3 rounded-xl mb-3 transition-colors"><i className="ph-bold ph-github-logo"></i> View Source Code</a>}
+                            <div className="grid grid-cols-2 gap-3">
+                                <button className="bg-white text-black font-bold py-3 rounded-xl hover:bg-gray-200 transition"><i className="ph-bold ph-download-simple"></i> Resume</button>
+                                <button className="bg-accent-500 text-black font-bold py-3 rounded-xl hover:bg-accent-400 transition"><i className="ph-bold ph-envelope"></i> Email</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <button onClick={handleUnlock} className="w-full bg-accent-500 hover:bg-accent-400 text-black font-bold py-4 rounded-xl transition-all shadow-lg shadow-accent-500/10">
+                                <i className="ph-bold ph-lock-key-open mr-2"></i> Unlock Candidate Contact
+                            </button>
+                            <p className="text-center text-xs text-gray-500">Recruiter Mode: 1 Credit will be used.</p>
+                        </div>
+                    )}
                 </div>
-            </div>
-            <div className="glass-card p-8 rounded-2xl">
-                <h1 className="text-3xl font-bold text-white mb-2">{project.title}</h1>
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="w-8 h-8 rounded-full bg-accent-500 flex items-center justify-center text-black font-bold">{project.author_name ? project.author_name.charAt(0) : "?"}</div>
-                    <p className="text-gray-300">By <span className="text-white font-bold">
-                        {/* MASKED NAME APPLIED HERE FOR PRIVACY */}
-                        {getMaskedName(project.author_name)}
-                    </span></p>
-                    <span className="text-gray-600">•</span>
-                    <p className="text-accent-400 text-sm font-bold">{project.role_title}</p>
-                </div>
-                <div className="h-px bg-white/10 w-full my-6"></div>
-                <h3 className="text-lg font-bold text-white mb-3">Project Summary</h3>
-                <p className="text-gray-400 leading-relaxed mb-6">{project.description || "No description provided."}</p>
-                {project.repo_url && <a href={project.repo_url} target="_blank" className="block w-full text-center border border-white/10 hover:bg-white/5 text-white font-bold py-3 rounded-xl mb-3 transition-colors"><i className="ph-bold ph-github-logo"></i> View Source Code</a>}
-                <button className="w-full bg-accent-500 hover:bg-accent-400 text-black font-bold py-4 rounded-xl transition-all mb-4">Unlock Candidate Contact</button>
-                <p className="text-center text-xs text-gray-500">Recruiter Mode: 1 Credit will be used.</p>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 const Card = ({ p, isRecruiter, onViewProject }) => {
+    const [unlocked, setUnlocked] = useState(false);
+
     // NEW: WAITLIST LOGIC
     const handleWaitlist = async () => {
         const email = prompt("We are launching payments next week! Enter your work email to get 1 Free Credit when we go live:");
@@ -289,7 +330,7 @@ const Card = ({ p, isRecruiter, onViewProject }) => {
 
                 // 2. Success Feedback
                 alert(`Success! We've added ${email} to the priority list. You'll get your free credit on launch day.`);
-                
+                setUnlocked(true); // REVEAL THE NAME AND BUTTONS
             } catch (error) {
                 console.error("Error adding to waitlist:", error);
                 alert("Something went wrong. Please try again.");
@@ -304,7 +345,7 @@ const Card = ({ p, isRecruiter, onViewProject }) => {
                 <div className="absolute inset-0 bg-gradient-to-t from-base-900 via-transparent to-transparent z-10"></div>
                 <img src={p.image_url || "https://via.placeholder.com/800"} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={p.title} />
                 
-                {isRecruiter && (
+                {isRecruiter && !unlocked && (
                     <div className="absolute inset-0 bg-base-900/60 backdrop-blur-[3px] z-20 flex flex-col items-center justify-center text-center p-4 animate-fade-in">
                         <div className="bg-base-900/80 p-3 rounded-full mb-2">
                             <i className="ph-fill ph-lock-key text-3xl text-accent-500"></i>
@@ -316,29 +357,38 @@ const Card = ({ p, isRecruiter, onViewProject }) => {
 
             <div className="p-5 flex flex-col flex-grow relative z-20">
                 <div className="mb-3">
-                    {/* MASKED NAME LOGIC: If Recruiter mode is ON, show Masked Name. */}
+                    {/* PRIVACY LOGIC: Show Masked Name if not unlocked */}
                     <h3 className="text-lg font-bold text-white leading-tight truncate">
-                        {isRecruiter ? getMaskedName(p.author_name) : p.author_name}
+                        {unlocked ? p.author_name : getMaskedName(p.author_name)}
                     </h3>
                     <p className="text-accent-400 text-xs font-bold uppercase tracking-wider mt-1">{p.role_title}</p>
                 </div>
                 <h4 className="text-gray-300 text-sm font-medium mb-3 line-clamp-2">{p.title}</h4>
                 
-                <div className="mt-auto">
-                    <div className="flex flex-wrap gap-2 mb-4">{p.tools && p.tools.map(t => <span key={t} className="text-[10px] bg-white/5 text-gray-400 px-2 py-1 rounded border border-white/5">{t}</span>)}</div>
-                    <div className="pt-4 border-t border-white/5">
-                        {isRecruiter ? (
-                            // SAFE "REQUEST ACCESS" BUTTON
-                            <button onClick={handleWaitlist} className="w-full bg-base-800 border border-white/20 text-white font-bold py-3 rounded-lg hover:bg-base-700 transition-all flex items-center justify-center gap-2">
-                                <i className="ph-bold ph-hourglass-high text-accent-500"></i> Request Access
-                            </button>
-                        ) : (
-                            <button onClick={() => onViewProject(p)} className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-lg border border-white/10 transition-all flex items-center justify-center gap-2 group-hover:border-accent-500/50">
-                                View Portfolio <i className="ph-bold ph-arrow-right group-hover:translate-x-1 transition-transform"></i>
-                            </button>
-                        )}
+                {unlocked ? (
+                    <div className="mt-auto space-y-3 animate-fade-in pt-4 border-t border-white/5">
+                         <div className="bg-green-500/10 border border-green-500/20 p-2 rounded-lg flex items-center justify-center gap-2 text-green-500 text-xs font-bold"><i className="ph-bold ph-check-circle"></i> Contact Revealed</div>
+                         <div className="grid grid-cols-2 gap-2">
+                            <button className="bg-white text-black py-2 rounded-md font-bold text-xs flex items-center justify-center gap-2 hover:bg-gray-200 transition"><i className="ph-bold ph-download-simple"></i> Resume</button>
+                            <button className="bg-accent-500 text-black font-bold py-2 rounded-md text-xs flex items-center justify-center gap-2 hover:bg-accent-400 transition"><i className="ph-bold ph-envelope"></i> Email</button>
+                         </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="mt-auto">
+                        <div className="flex flex-wrap gap-2 mb-4">{p.tools && p.tools.map(t => <span key={t} className="text-[10px] bg-white/5 text-gray-400 px-2 py-1 rounded border border-white/5">{t}</span>)}</div>
+                        <div className="pt-4 border-t border-white/5">
+                            {isRecruiter ? (
+                                <button onClick={handleWaitlist} className="w-full bg-base-800 border border-white/20 text-white font-bold py-3 rounded-lg hover:bg-base-700 transition-all flex items-center justify-center gap-2">
+                                    <i className="ph-bold ph-hourglass-high text-accent-500"></i> Request Access
+                                </button>
+                            ) : (
+                                <button onClick={() => onViewProject(p)} className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-lg border border-white/10 transition-all flex items-center justify-center gap-2 group-hover:border-accent-500/50">
+                                    View Portfolio <i className="ph-bold ph-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
